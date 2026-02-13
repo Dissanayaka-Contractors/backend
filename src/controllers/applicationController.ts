@@ -77,3 +77,15 @@ export const downloadCV = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error downloading CV' });
     }
 };
+
+export const deleteApplication = async (req: Request, res: Response) => {
+    try {
+        const success = await ApplicationModel.softDelete(Number(req.params.id));
+        if (!success) {
+            return res.status(404).json({ message: 'Application not found' });
+        }
+        res.json({ message: 'Application deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting application', error });
+    }
+};

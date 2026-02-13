@@ -14,7 +14,7 @@ export interface Job {
 
 export const JobModel = {
     findAll: async (): Promise<Job[]> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs ORDER BY postedDate DESC');
+        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE is_deleted = FALSE ORDER BY postedDate DESC');
         return rows.map(row => ({
             ...row,
             keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords
@@ -30,12 +30,17 @@ export const JobModel = {
     },
 
     findById: async (id: number): Promise<Job | null> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE id = ?', [id]);
+        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE id = ? AND is_deleted = FALSE', [id]);
         if (rows.length === 0) return null;
         const row = rows[0];
         return {
             ...row,
             keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords
         } as Job;
+    },
+
+    softDelete: async (id: number): Promise<boolean> => {
+        const [result] = await pool.query<ResultSetHeader>('UPDATE jobs SET is_deleted = TRUE WHERE id = ?', [id]);
+        return result.affectedRows > 0;
     }
 };

@@ -71,5 +71,10 @@ export const ApplicationModel = {
             [status, id]
         );
         return result.affectedRows > 0;
+    },
+
+    softDelete: async (id: number): Promise<boolean> => {
+        const [result] = await pool.query<ResultSetHeader>('UPDATE applications SET is_deleted = TRUE WHERE id = ?', [id]);
+        return result.affectedRows > 0;
     }
 };

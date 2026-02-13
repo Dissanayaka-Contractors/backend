@@ -42,3 +42,15 @@ export const getJobById = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Error fetching job', error });
     }
 };
+
+export const deleteJob = async (req: Request, res: Response) => {
+    try {
+        const success = await JobModel.softDelete(Number(req.params.id));
+        if (!success) {
+            return res.status(404).json({ message: 'Job not found' });
+        }
+        res.json({ message: 'Job deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting job', error });
+    }
+};

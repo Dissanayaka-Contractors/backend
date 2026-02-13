@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { submitApplication, getAllApplications, getUserApplications, downloadCV } from '../controllers/applicationController';
+import { submitApplication, getAllApplications, getUserApplications, downloadCV, deleteApplication } from '../controllers/applicationController';
 import { protect, adminOnly } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -29,5 +29,6 @@ router.post('/', protect, upload.single('cv'), submitApplication);
 router.get('/', protect, adminOnly, getAllApplications);
 router.get('/my', protect, getUserApplications);
 router.get('/:id/cv', downloadCV);
+router.delete('/:id', protect, adminOnly, deleteApplication);
 
 export default router;
