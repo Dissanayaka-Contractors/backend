@@ -80,7 +80,7 @@ export const downloadCV = async (req: Request, res: Response) => {
 
 export const deleteApplication = async (req: Request, res: Response) => {
     try {
-        const success = await ApplicationModel.softDelete(Number(req.params.id));
+        const success = await ApplicationModel.delete(Number(req.params.id));
         if (!success) {
             return res.status(404).json({ message: 'Application not found' });
         }
