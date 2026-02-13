@@ -13,11 +13,12 @@ const run = async () => {
             port: Number(process.env.DB_PORT) || 3306,
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME || 'dissanayaka_contractors',
             multipleStatements: true
         });
 
         console.log('Connected to MySQL. Reading schema...');
-        const schemaPath = path.join(__dirname, '../../schema.sql');
+        const schemaPath = path.join(__dirname, '../../migrations/full_schema.sql');
         const sql = fs.readFileSync(schemaPath, 'utf8');
 
         console.log('Executing schema...');
