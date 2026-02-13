@@ -28,7 +28,9 @@ export const submitApplication = async (req: AuthenticatedRequest, res: Response
             phone,
             address,
             gender,
-            cv_path: req.file.path,
+            cv_path: req.file.originalname, // Store filename
+            cv_data: req.file.buffer, // Store Buffer
+            cv_mimetype: req.file.mimetype, // Store MimeType
             status: 'pending'
         };
 
@@ -55,5 +57,23 @@ export const getUserApplications = async (req: AuthenticatedRequest, res: Respon
         res.json(applications);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching applications', error });
+    }
+};
+
+export const downloadCV = async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id);
+        const cv = await ApplicationModel.findCVById(id);
+
+        if (!cv || !cv.cv_data) {
+            return res.status(404).json({ message: 'CV not found' });
+        }
+
+        res.setHeader('Content-Type', cv.cv_mimetype);
+        res.setHeader('Content-Disposition', `inline; filename="${cv.cv_path}"`);
+        res.send(cv.cv_data);
+    } catch (error) {
+        console.error('Error downloading CV:', error);
+        res.status(500).json({ message: 'Error downloading CV' });
     }
 };
