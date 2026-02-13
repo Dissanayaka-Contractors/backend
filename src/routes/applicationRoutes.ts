@@ -25,7 +25,6 @@ const storage = new CloudinaryStorage({
             folder: 'dissanayaka-contractors/applications',
             resource_type: 'raw', // Force raw for all uploads to avoid 401 on PDFs
             public_id: `${Date.now()}-${path.parse(file.originalname).name}.${ext}`, // Keep extension
-            format: ext
         };
     },
 });
