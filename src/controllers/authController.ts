@@ -9,6 +9,35 @@ const generateToken = (id: number, role: string) => {
     });
 };
 
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+const sendVerificationEmail = async (email: string, otp: string) => {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.warn('Skipping email verification: EMAIL_USER or EMAIL_PASS not set.');
+        return;
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Verify Your Email - Dissanayaka Contractors',
+        text: `Your verification code is: ${otp}`,
+        html: `<h3>Email Verification</h3><p>Your verification code is: <strong>${otp}</strong></p>`
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
 export const registerUser = async (req: Request, res: Response) => {
     const { username, email, password, role } = req.body;
 
@@ -25,23 +54,56 @@ export const registerUser = async (req: Request, res: Response) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Prevent creating admin users via public registration
-        // For security, only 'user' role is allowed in public registration
+        // Generate 6 digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         const newUser: User = {
             username,
             email,
             password: hashedPassword,
-            role: 'user' // Default to user
+            role: 'user',
+            is_verified: false,
+            verification_code: otp
         };
 
         const id = await UserModel.create(newUser);
+
+        // Send OTP Email
+        await sendVerificationEmail(email, otp);
+
         res.status(201).json({
-            id,
-            username,
-            email,
-            role: 'user',
-            token: generateToken(id, 'user')
+            message: 'Registration successful. Please verify your email.',
+            email
+        });
+    } catch (error) {
+        console.error("Register Error:", error);
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+export const verifyEmail = async (req: Request, res: Response) => {
+    const { email, otp } = req.body;
+
+    try {
+        const user = await UserModel.findByEmail(email);
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
+
+        if (user.is_verified) {
+            return res.status(400).json({ message: 'User already verified' });
+        }
+
+        if (user.verification_code !== otp) {
+            return res.status(400).json({ message: 'Invalid verification code' });
+        }
+
+        // Verify user
+        await UserModel.verifyUser(email);
+
+        res.json({
+            message: 'Email verified successfully. You can now login.',
+            token: generateToken(user.id!, user.role)
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
@@ -55,6 +117,14 @@ export const loginUser = async (req: Request, res: Response) => {
         const user = await UserModel.findByEmail(email);
 
         if (user && user.password && (await bcrypt.compare(password, user.password))) {
+            if (!user.is_verified) {
+                return res.status(401).json({
+                    message: 'Email not verified',
+                    needVerification: true,
+                    email: user.email
+                });
+            }
+
             res.json({
                 id: user.id,
                 username: user.username,

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createJob = exports.getJobs = void 0;
+exports.deleteJob = exports.getJobById = exports.createJob = exports.getJobs = void 0;
 const Job_1 = require("../models/Job");
 const getJobs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -25,8 +25,8 @@ const createJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const jobData = req.body;
         // Basic validation
-        if (!jobData.title || !jobData.location || !jobData.description) {
-            return res.status(400).json({ message: 'Missing required fields' });
+        if (!jobData.title || !jobData.location || !jobData.description || !jobData.type) {
+            return res.status(400).json({ message: 'Missing required fields (title, location, description, type)' });
         }
         // Set default postedDate if not provided
         if (!jobData.postedDate) {
@@ -36,7 +36,34 @@ const createJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.status(201).json(Object.assign({ message: 'Job created successfully', id }, jobData));
     }
     catch (error) {
-        res.status(500).json({ message: 'Error creating job', error });
+        console.error("Error creating job:", error);
+        res.status(500).json({ message: 'Error creating job', error: String(error) });
     }
 });
 exports.createJob = createJob;
+const getJobById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const job = yield Job_1.JobModel.findById(Number(req.params.id));
+        if (!job) {
+            return res.status(404).json({ message: 'Job not found' });
+        }
+        res.json(job);
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Error fetching job', error });
+    }
+});
+exports.getJobById = getJobById;
+const deleteJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const success = yield Job_1.JobModel.softDelete(Number(req.params.id));
+        if (!success) {
+            return res.status(404).json({ message: 'Job not found' });
+        }
+        res.json({ message: 'Job deleted successfully' });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Error deleting job', error });
+    }
+});
+exports.deleteJob = deleteJob;

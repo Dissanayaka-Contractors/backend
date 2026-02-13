@@ -26,9 +26,16 @@ app.use(express_1.default.json());
 const jobRoutes_1 = __importDefault(require("./routes/jobRoutes"));
 const testimonialRoutes_1 = __importDefault(require("./routes/testimonialRoutes"));
 const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
+const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
+const applicationRoutes_1 = __importDefault(require("./routes/applicationRoutes"));
+const path_1 = __importDefault(require("path"));
 app.use('/api/jobs', jobRoutes_1.default);
 app.use('/api/testimonials', testimonialRoutes_1.default);
 app.use('/api/contact', contactRoutes_1.default);
+app.use('/api/auth', authRoutes_1.default);
+app.use('/api/applications', applicationRoutes_1.default);
+// Serve uploaded files statically
+app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
 // Test Route
 app.get('/api/health', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
