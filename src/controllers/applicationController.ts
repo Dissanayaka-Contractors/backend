@@ -28,7 +28,7 @@ export const submitApplication = async (req: AuthenticatedRequest, res: Response
             phone,
             address,
             gender,
-            cv_path: req.file.filename,
+            cv_path: req.file.path,
             status: 'pending'
         };
 

@@ -6,30 +6,32 @@ import { protect, adminOnly } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// Configure Multer for PDF/Doc uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure Multer for Cloudinary
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
+        return {
+            folder: 'dissanayaka-contractors/applications',
+            allowed_formats: ['pdf', 'doc', 'docx'],
+            resource_type: 'auto', // Auto-detect resource type
+            public_id: `${Date.now()}-${path.parse(file.originalname).name}`
+        };
     },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
-    }
 });
 
 const upload = multer({
-    storage,
+    storage: storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    fileFilter: (req, file, cb) => {
-        const filetypes = /pdf|doc|docx/;
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = filetypes.test(file.mimetype);
-
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('Only PDF and Word documents are allowed'));
-        }
-    }
 });
 
 router.post('/', protect, upload.single('cv'), submitApplication);
