@@ -46,7 +46,7 @@ export const ApplicationModel = {
 
     findAll: async (): Promise<Application[]> => {
         const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT id, job_id, user_id, full_name, email, phone, address, gender, cv_path, status, applied_at, j.title as job_title 
+            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.cv_path, a.status, a.applied_at, j.title as job_title 
             FROM applications a 
             JOIN jobs j ON a.job_id = j.id 
             ORDER BY a.applied_at DESC
@@ -56,7 +56,7 @@ export const ApplicationModel = {
 
     findByUserId: async (userId: number): Promise<Application[]> => {
         const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT id, job_id, user_id, full_name, email, phone, address, gender, cv_path, status, applied_at, j.title as job_title 
+            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.cv_path, a.status, a.applied_at, j.title as job_title 
             FROM applications a 
             JOIN jobs j ON a.job_id = j.id 
             WHERE a.user_id = ? 
