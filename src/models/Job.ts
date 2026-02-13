@@ -14,7 +14,7 @@ export interface Job {
 
 export const JobModel = {
     findAll: async (): Promise<Job[]> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE is_deleted = FALSE ORDER BY postedDate DESC');
+        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE status = 1 ORDER BY postedDate DESC');
         return rows.map(row => ({
             ...row,
             keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords
@@ -23,14 +23,14 @@ export const JobModel = {
 
     create: async (job: Job): Promise<number> => {
         const [result] = await pool.query<ResultSetHeader>(
-            'INSERT INTO jobs (title, type, location, description, salary, postedDate, keywords) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO jobs (title, type, location, description, salary, postedDate, keywords, status) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
             [job.title, job.type, job.location, job.description, job.salary, job.postedDate, JSON.stringify(job.keywords || [])]
         );
         return result.insertId;
     },
 
     findById: async (id: number): Promise<Job | null> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE id = ? AND is_deleted = FALSE', [id]);
+        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE id = ? AND status = 1', [id]);
         if (rows.length === 0) return null;
         const row = rows[0];
         return {
@@ -40,7 +40,7 @@ export const JobModel = {
     },
 
     softDelete: async (id: number): Promise<boolean> => {
-        const [result] = await pool.query<ResultSetHeader>('UPDATE jobs SET is_deleted = TRUE WHERE id = ?', [id]);
+        const [result] = await pool.query<ResultSetHeader>('UPDATE jobs SET status = 5 WHERE id = ?', [id]);
         return result.affectedRows > 0;
     }
 };
