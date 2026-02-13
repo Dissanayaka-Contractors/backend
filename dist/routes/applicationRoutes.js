@@ -30,5 +30,6 @@ router.post('/', authMiddleware_1.protect, upload.single('cv'), applicationContr
 router.get('/', authMiddleware_1.protect, authMiddleware_1.adminOnly, applicationController_1.getAllApplications);
 router.get('/my', authMiddleware_1.protect, applicationController_1.getUserApplications);
 router.get('/:id/cv', applicationController_1.downloadCV);
+router.put('/:id/status', authMiddleware_1.protect, authMiddleware_1.adminOnly, applicationController_1.updateApplicationStatus);
 router.delete('/:id', authMiddleware_1.protect, authMiddleware_1.adminOnly, applicationController_1.deleteApplication);
 exports.default = router;
