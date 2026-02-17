@@ -10,6 +10,7 @@ export interface Application {
     phone: string;
     address: string;
     gender: string;
+    age: number;
     cv_path?: string; // Optional (filename)
     cv_data?: Buffer; // Binary data
     cv_mimetype?: string; // Mime type
@@ -21,7 +22,7 @@ export interface Application {
 export const ApplicationModel = {
     create: async (application: Application): Promise<number> => {
         const [result] = await pool.query<ResultSetHeader>(
-            'INSERT INTO applications (job_id, user_id, full_name, email, phone, address, gender, cv_path, cv_data, cv_mimetype) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO applications (job_id, user_id, full_name, email, phone, address, gender, age, cv_path, cv_data, cv_mimetype) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 application.job_id,
                 application.user_id,
@@ -30,6 +31,7 @@ export const ApplicationModel = {
                 application.phone,
                 application.address,
                 application.gender,
+                application.age,
                 application.cv_path,
                 application.cv_data,
                 application.cv_mimetype
@@ -46,7 +48,7 @@ export const ApplicationModel = {
 
     findAll: async (): Promise<Application[]> => {
         const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.cv_path, a.status, a.applied_at, j.title as job_title 
+            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.age, a.cv_path, a.status, a.applied_at, j.title as job_title 
             FROM applications a 
             JOIN jobs j ON a.job_id = j.id 
             ORDER BY a.applied_at DESC
@@ -56,7 +58,7 @@ export const ApplicationModel = {
 
     findByUserId: async (userId: number): Promise<Application[]> => {
         const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.cv_path, a.status, a.applied_at, j.title as job_title 
+            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.age, a.cv_path, a.status, a.applied_at, j.title as job_title 
             FROM applications a 
             JOIN jobs j ON a.job_id = j.id 
             WHERE a.user_id = ? 
@@ -67,7 +69,7 @@ export const ApplicationModel = {
 
     findById: async (id: number): Promise<Application | null> => {
         const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.cv_path, a.status, a.applied_at, j.title as job_title 
+            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.age, a.cv_path, a.status, a.applied_at, j.title as job_title 
             FROM applications a 
             JOIN jobs j ON a.job_id = j.id 
             WHERE a.id = ?

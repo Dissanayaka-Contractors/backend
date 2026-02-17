@@ -13,10 +13,10 @@ export const submitApplication = async (req: AuthenticatedRequest, res: Response
             return res.status(400).json({ message: 'CV file is required' });
         }
 
-        const { job_id, full_name, email, phone, address, gender } = req.body;
+        const { job_id, full_name, email, phone, address, gender, age } = req.body;
         const user_id = req.user.id;
 
-        if (!job_id || !full_name || !email || !phone || !address || !gender) {
+        if (!job_id || !full_name || !email || !phone || !address || !gender || !age) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
@@ -28,6 +28,7 @@ export const submitApplication = async (req: AuthenticatedRequest, res: Response
             phone,
             address,
             gender,
+            age: Number(age),
             cv_path: req.file.originalname, // Store filename
             cv_data: req.file.buffer, // Store Buffer
             cv_mimetype: req.file.mimetype, // Store MimeType
