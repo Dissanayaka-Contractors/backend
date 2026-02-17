@@ -9,33 +9,23 @@ const generateToken = (id: number, role: string) => {
     });
 };
 
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+import { sendEmail } from '../utils/emailService';
 
 const sendVerificationEmail = async (email: string, otp: string) => {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('Skipping email verification: EMAIL_USER or EMAIL_PASS not set.');
-        return;
-    }
+    // emailService handles config checks
 
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
+    const emailOptions = {
         to: email,
         subject: 'Verify Your Email - Dissanayaka Contractors',
         text: `Your verification code is: ${otp}`,
         html: `<h3>Email Verification</h3><p>Your verification code is: <strong>${otp}</strong></p>`
     };
 
-    await transporter.sendMail(mailOptions);
+    try {
+        await sendEmail(emailOptions);
+    } catch (error) {
+        console.warn('Failed to send verification email:', error);
+    }
 };
 
 export const registerUser = async (req: Request, res: Response) => {

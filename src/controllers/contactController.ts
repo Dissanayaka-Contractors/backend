@@ -1,16 +1,6 @@
 import { Request, Response } from 'express';
 import { ContactModel, Contact } from '../models/Contact';
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+import { sendEmail } from '../utils/emailService';
 
 export const submitContact = async (req: Request, res: Response) => {
     try {
@@ -23,10 +13,11 @@ export const submitContact = async (req: Request, res: Response) => {
         const id = await ContactModel.create(contactData);
 
         // 2. Send Email Notification
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            const mailOptions = {
-                from: process.env.EMAIL_USER,
-                to: process.env.EMAIL_USER, // Send to self (Admin)
+        const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+
+        if (adminEmail) {
+            const emailOptions = {
+                to: adminEmail, // Send to Admin
                 replyTo: contactData.email,
                 subject: `New Contact Form Submission: ${contactData.subject}`,
                 text: `
@@ -50,10 +41,10 @@ ${contactData.message}
                 `
             };
 
-            await transporter.sendMail(mailOptions);
+            await sendEmail(emailOptions);
             console.log('Email notification sent successfully');
         } else {
-            console.warn('Skipping email notification: EMAIL_USER or EMAIL_PASS not set.');
+            console.warn('Skipping email notification: ADMIN_EMAIL or EMAIL_USER not set.');
         }
 
         res.status(201).json({ message: 'Message sent successfully', id });

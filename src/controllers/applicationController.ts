@@ -79,24 +79,12 @@ export const downloadCV = async (req: Request, res: Response) => {
 };
 
 
-// Email Transporter (Reuse from authController or extract to utility later)
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-dotenv.config();
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// Email Transporter (Refactored to use emailService)
+import { sendEmail } from '../utils/emailService';
 
 const sendStatusEmail = async (email: string, fullName: string, jobTitle: string, status: 'accepted' | 'rejected') => {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('Skipping email notification: EMAIL_USER or EMAIL_PASS not set.');
-        return;
-    }
+    // Only proceed if email service is likely configured (emailService handles the check internally but we can skip if obviously missing critical envs if we want, but better to let service handle it or just try).
+    // The emailService logs warning if SMTP/Gmail not configured properly.
 
     let subject = '';
     let text = '';
@@ -112,15 +100,18 @@ const sendStatusEmail = async (email: string, fullName: string, jobTitle: string
         html = `<h3>Application Update</h3><p>Dear ${fullName},</p><p>Thank you for your interest in the <strong>${jobTitle}</strong> position at Dissanayaka Contractors.</p><p>After careful consideration, we regret to inform you that we will not be proceeding with your application at this time.</p><p>We wish you the best in your job search.</p><br><p>Best regards,<br>Dissanayaka Contractors</p>`;
     }
 
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
+    const emailOptions = {
         to: email,
         subject: subject,
         text: text,
         html: html
     };
 
-    await transporter.sendMail(mailOptions);
+    try {
+        await sendEmail(emailOptions);
+    } catch (error) {
+        console.warn('Failed to send status email:', error);
+    }
 };
 
 export const updateApplicationStatus = async (req: Request, res: Response) => {
@@ -137,38 +128,17 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Application not found' });
         }
 
-        // Fetch application details to send email
-        // We need to implement findById in ApplicationModel first or just trust the frontend?
-        // Better to fetch from DB to be safe and get correct email/name.
-        // For now, let's assume valid ID and we might need to add findById to ApplicationModel if not exists, 
-        // OR just reuse findAll/findById? 
-        // ApplicationModel.findCVById only returns CV data. 
-        // Let's rely on the frontend passing necessary data OR add findById.
-        // Adding findById to ApplicationModel is cleaner.
+        // Fetch application details to send email (Reliable method)
+        const application = await ApplicationModel.findById(id);
 
-        // Wait, I can't edit Model and Controller in one step if they are different files. 
-        // I'll add findById to ApplicationModel in this same step if possible? No, strictly one file per tool.
-        // I will assume I can fetch it via a raw query here for speed, or just ask frontend to pass email/name (less secure but faster).
-        // Let's do a quick raw query here or modify Model in next step.
-        // Actually, let's check if I can just query it here since I imported pool. Not imported here properly? 
-        // I don't have pool imported in controller usually, it's in Model.
-        // I will add `getApplicationDetails` to ApplicationModel in the next step.
-        // For now, I'll update the status. I will send the email in a separate step or just do it after adding the helper.
-        // Actually, I'll add the logic to fetch details inside the controller using a direct query if I can, OR request the model update first.
-
-        // Refined Plan:
-        // 1. Update ApplicationController (this step) - adding logic but commenting out email part until Model has findById? 
-        // No, I'll use a hack or just add the Model update next.
-        // actually `findAll` returns all. 
-
-        // Let's add the `updateStatus` and `sendEmail` logic, but I need the applicant's email.
-        // I'll grab it from the frontend request body for now to save a DB call, 
-        // IF the frontend has it. AdminDashboard has it.
-        // So I'll expect { status, email, fullName, jobTitle } in the body.
-
-        const { email, fullName, jobTitle } = req.body;
-        if (email && fullName && jobTitle && (status === 'accepted' || status === 'rejected')) {
-            await sendStatusEmail(email, fullName, jobTitle, status);
+        if (application && application.email && application.full_name && application.job_title && (status === 'accepted' || status === 'rejected')) {
+            await sendStatusEmail(application.email, application.full_name, application.job_title, status);
+        } else {
+            if (!application) {
+                console.warn(`Application with ID ${id} not found after status update.`);
+            } else {
+                console.warn(`Skipping email for application ${id}: Missing email, fullName, or jobTitle.`);
+            }
         }
 
         res.json({ message: 'Application status updated successfully' });

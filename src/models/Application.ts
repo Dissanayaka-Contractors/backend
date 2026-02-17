@@ -65,6 +65,17 @@ export const ApplicationModel = {
         return rows as Application[];
     },
 
+    findById: async (id: number): Promise<Application | null> => {
+        const [rows] = await pool.query<RowDataPacket[]>(`
+            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.cv_path, a.status, a.applied_at, j.title as job_title 
+            FROM applications a 
+            JOIN jobs j ON a.job_id = j.id 
+            WHERE a.id = ?
+        `, [id]);
+        if (rows.length === 0) return null;
+        return rows[0] as Application;
+    },
+
     updateStatus: async (id: number, status: string): Promise<boolean> => {
         const [result] = await pool.query<ResultSetHeader>(
             'UPDATE applications SET status = ? WHERE id = ?',
