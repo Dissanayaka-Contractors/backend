@@ -27,27 +27,31 @@ export const createJob = async (req: Request, res: Response) => {
 
         const id = await JobModel.create(jobData);
 
-        // --- Facebook Graph API Integration (with Photo) ---
+        // --- Facebook Graph API Integration (with Photo, Vercel Fixed) ---
         try {
             const pageId = process.env.FB_PAGE_ID || '1014189591774493';
             const accessToken = process.env.FB_ACCESS_TOKEN || 'EAAXiqXoRCYIBQ8FLldw856TZBq7eGFFtH83R9h5JRmLqnZCpKsCLFXKkpPdT6e8fkHZCghm1ayM4UwT0Obgi4PsmjonJbOUlDMpHxeegwtZBEzqDxgwmTNtPm5zOrZAUZCjvhRTnBKIAyFy1blt6gQXULZARQsdifl6HH2o6aq8hNDBjZAqVpCMk42kXRZB59DLgctU07eHO5CnCRPoBkEo8dEJvKbdxhi90vGgPlQUhe624ZD';
 
             const message = `New Job Posted: ${jobData.title}!\n\nLocation: ${jobData.location}\n\nType: ${jobData.type}\n\nSalary: ${jobData.salary}\n\n${jobData.description}\n\nVisit our site to apply.\n\nhttps://www.dissanayakacontractors.com/careers/${id}`;
 
-            // Adjust path based on where 'server' sits relative to 'client/public'
-            const fbImagePath = path.join(__dirname, '..', '..', '..', 'client', 'public', 'fb_post.png');
-
             const form = new FormData();
             form.append('message', message);
             form.append('access_token', accessToken);
 
-            if (fs.existsSync(fbImagePath)) {
-                // Read file via native Node, wrap it as a Blob so FormData accepts it
-                const fileBuffer = fs.readFileSync(fbImagePath);
-                const blob = new Blob([fileBuffer], { type: 'image/png' });
-                form.append('source', blob, 'fb_post.png');
-            } else {
-                console.warn(`Facebook Image not found at ${fbImagePath}. Posting without image.`);
+            // Fetch the image from the live frontend URL instead of the local filesystem (Vercel fix)
+            const frontendUrl = process.env.FRONTEND_URL || 'https://www.dissanayakacontractors.com';
+            const imageUrl = `${frontendUrl}/fb_post.png`;
+
+            try {
+                const imageResponse = await fetch(imageUrl);
+                if (imageResponse.ok) {
+                    const blob = await imageResponse.blob();
+                    form.append('source', blob, 'fb_post.png');
+                } else {
+                    console.warn(`Failed to fetch image from ${imageUrl} (Status: ${imageResponse.status}). Posting without image.`);
+                }
+            } catch (fetchError) {
+                console.warn(`Network error fetching image from ${imageUrl}. Posting without image. Error:`, fetchError);
             }
 
             const fbResponse = await fetch(`https://graph.facebook.com/v19.0/${pageId}/photos`, {
