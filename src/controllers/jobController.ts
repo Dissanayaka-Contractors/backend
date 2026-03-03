@@ -28,6 +28,7 @@ export const createJob = async (req: Request, res: Response) => {
         const id = await JobModel.create(jobData);
 
         // --- Facebook Graph API Integration (with Photo, Vercel Fixed) ---
+        /*
         try {
             const pageId = process.env.FB_PAGE_ID || '1014189591774493';
             const accessToken = process.env.FB_ACCESS_TOKEN || 'EAAXiqXoRCYIBQ8FLldw856TZBq7eGFFtH83R9h5JRmLqnZCpKsCLFXKkpPdT6e8fkHZCghm1ayM4UwT0Obgi4PsmjonJbOUlDMpHxeegwtZBEzqDxgwmTNtPm5zOrZAUZCjvhRTnBKIAyFy1blt6gQXULZARQsdifl6HH2o6aq8hNDBjZAqVpCMk42kXRZB59DLgctU07eHO5CnCRPoBkEo8dEJvKbdxhi90vGgPlQUhe624ZD';
@@ -38,20 +39,19 @@ export const createJob = async (req: Request, res: Response) => {
             form.append('message', message);
             form.append('access_token', accessToken);
 
-            // Fetch the image from the live frontend URL instead of the local filesystem (Vercel fix)
-            const frontendUrl = process.env.FRONTEND_URL || 'https://www.dissanayakacontractors.com';
-            const imageUrl = `${frontendUrl}/fb_post.png`;
-
-            try {
-                const imageResponse = await fetch(imageUrl);
-                if (imageResponse.ok) {
-                    const blob = await imageResponse.blob();
-                    form.append('source', blob, 'fb_post.png');
-                } else {
-                    console.warn(`Failed to fetch image from ${imageUrl} (Status: ${imageResponse.status}). Posting without image.`);
+            // Use dynamically generated image from frontend if available
+            const fbImageBase64 = req.body.fbImageBase64;
+            if (fbImageBase64) {
+                try {
+                    const base64Data = fbImageBase64.replace(/^data:image\/\w+;base64,/, "");
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    const blob = new Blob([buffer], { type: 'image/jpeg' });
+                    form.append('source', blob, 'fb_post.jpg');
+                } catch (bufferError) {
+                    console.warn("Error processing fbImageBase64. Posting without image.", bufferError);
                 }
-            } catch (fetchError) {
-                console.warn(`Network error fetching image from ${imageUrl}. Posting without image. Error:`, fetchError);
+            } else {
+                console.warn("No fbImageBase64 provided from frontend. Posting without image.");
             }
 
             const fbResponse = await fetch(`https://graph.facebook.com/v19.0/${pageId}/photos`, {
@@ -68,6 +68,7 @@ export const createJob = async (req: Request, res: Response) => {
         } catch (fbError) {
             console.error("Error connecting to Facebook Graph API:", fbError);
         }
+        */
         // --------------------------------------
 
         res.status(201).json({ message: 'Job created successfully', id, ...jobData });
