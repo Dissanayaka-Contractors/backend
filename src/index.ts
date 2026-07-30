@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import pool from './config/db';
+import { connectDB, getDB } from './config/db';
 
 dotenv.config();
 
@@ -33,8 +33,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Test Route
 app.get('/api/health', async (req, res) => {
     try {
-        const connection = await pool.getConnection();
-        connection.release();
+        const db = getDB();
+        await db.command({ ping: 1 });
         res.json({ status: 'ok', database: 'connected' });
     } catch (error) {
         console.error('Database connection failed:', error);
@@ -47,7 +47,15 @@ export default app;
 
 // Only run the server if not in Vercel environment
 if (process.env.VERCEL !== '1') {
-    app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+    connectDB().then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+    }).catch(err => {
+        console.error('Failed to connect to MongoDB', err);
+        process.exit(1);
     });
+} else {
+    // For Vercel Serverless Functions
+    connectDB().catch(console.error);
 }

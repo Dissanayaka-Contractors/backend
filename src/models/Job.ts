@@ -1,5 +1,4 @@
-import pool from '../config/db';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { getDB, getNextSequenceValue } from '../config/db';
 
 export interface Job {
     id?: number;
@@ -10,37 +9,50 @@ export interface Job {
     salary: string;
     postedDate: string;
     keywords: string[];
+    status?: number;
 }
 
 export const JobModel = {
     findAll: async (): Promise<Job[]> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE status = 1 ORDER BY postedDate DESC');
-        return rows.map(row => ({
-            ...row,
-            keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords
-        })) as Job[];
+        const db = getDB();
+        const jobs = await db.collection('jobs')
+            .find({ status: { $ne: 5 } }) // Assuming 5 is deleted, and 1 is active, or just not 5. Let's use $ne 5 or $eq 1 based on old code. Old code used `status = 1`.
+            // Wait, looking at old code: `SELECT * FROM jobs WHERE status = 1`
+            // and `softDelete: UPDATE jobs SET status = 5`
+            // Let's stick to status: 1, or if it's missing (migrated records didn't have status in schema!), we should handle it.
+            // Wait, the MySQL schema didn't have `status` column in `jobs` table, but `Job.ts` uses `status = 1`. 
+            // In the migration script, we just migrated `jobs` table. The old DB probably had a status column added later. Let's query by `$or: [{status: 1}, {status: {$exists: false}}]`.
+            .sort({ postedDate: -1 })
+            .toArray();
+            
+        // Filter out status 5 just in case.
+        return jobs.filter(j => j.status !== 5) as unknown as Job[];
     },
 
     create: async (job: Job): Promise<number> => {
-        const [result] = await pool.query<ResultSetHeader>(
-            'INSERT INTO jobs (title, type, location, description, salary, postedDate, keywords, status) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-            [job.title, job.type, job.location, job.description, job.salary, job.postedDate, JSON.stringify(job.keywords || [])]
-        );
-        return result.insertId;
+        const db = getDB();
+        const id = await getNextSequenceValue('jobId');
+        const newJob = {
+            ...job,
+            id,
+            status: 1
+        };
+        await db.collection('jobs').insertOne(newJob);
+        return id;
     },
 
     findById: async (id: number): Promise<Job | null> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM jobs WHERE id = ? AND status = 1', [id]);
-        if (rows.length === 0) return null;
-        const row = rows[0];
-        return {
-            ...row,
-            keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords
-        } as Job;
+        const db = getDB();
+        const job = await db.collection('jobs').findOne({ id, status: { $ne: 5 } });
+        return job as Job | null;
     },
 
     softDelete: async (id: number): Promise<boolean> => {
-        const [result] = await pool.query<ResultSetHeader>('UPDATE jobs SET status = 5 WHERE id = ?', [id]);
-        return result.affectedRows > 0;
+        const db = getDB();
+        const result = await db.collection('jobs').updateOne(
+            { id },
+            { $set: { status: 5 } }
+        );
+        return result.modifiedCount > 0;
     }
 };

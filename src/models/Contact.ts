@@ -1,5 +1,4 @@
-import pool from '../config/db';
-import { ResultSetHeader } from 'mysql2';
+import { getDB, getNextSequenceValue } from '../config/db';
 
 export interface Contact {
     id?: number;
@@ -12,10 +11,20 @@ export interface Contact {
 
 export const ContactModel = {
     create: async (contact: Contact): Promise<number> => {
-        const [result] = await pool.query<ResultSetHeader>(
-            'INSERT INTO contacts (first_name, last_name, email, subject, message) VALUES (?, ?, ?, ?, ?)',
-            [contact.firstName, contact.lastName, contact.email, contact.subject, contact.message]
-        );
-        return result.insertId;
+        const db = getDB();
+        const id = await getNextSequenceValue('contactId');
+        
+        // MongoDB collections match old columns (e.g. first_name) from insert script mapping
+        const newContact = {
+            id,
+            first_name: contact.firstName,
+            last_name: contact.lastName,
+            email: contact.email,
+            subject: contact.subject,
+            message: contact.message,
+            created_at: new Date()
+        };
+        await db.collection('contacts').insertOne(newContact);
+        return id;
     }
 };

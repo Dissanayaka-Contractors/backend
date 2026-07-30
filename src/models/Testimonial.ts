@@ -1,5 +1,4 @@
-import pool from '../config/db';
-import { RowDataPacket } from 'mysql2';
+import { getDB } from '../config/db';
 
 export interface Testimonial {
     id?: number;
@@ -10,7 +9,8 @@ export interface Testimonial {
 
 export const TestimonialModel = {
     findAll: async (): Promise<Testimonial[]> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT * FROM testimonials');
-        return rows as Testimonial[];
+        const db = getDB();
+        const testimonials = await db.collection('testimonials').find().toArray();
+        return testimonials as unknown as Testimonial[];
     }
 };

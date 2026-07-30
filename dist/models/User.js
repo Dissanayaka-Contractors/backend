@@ -8,27 +8,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserModel = void 0;
-const db_1 = __importDefault(require("../config/db"));
+const db_1 = require("../config/db");
 exports.UserModel = {
     findByEmail: (email) => __awaiter(void 0, void 0, void 0, function* () {
-        const [rows] = yield db_1.default.query('SELECT * FROM users WHERE email = ?', [email]);
-        return rows.length > 0 ? rows[0] : null;
+        const db = (0, db_1.getDB)();
+        const user = yield db.collection('users').findOne({ email });
+        return user;
     }),
     create: (user) => __awaiter(void 0, void 0, void 0, function* () {
-        const [result] = yield db_1.default.query('INSERT INTO users (username, email, password, role, is_verified, verification_code) VALUES (?, ?, ?, ?, ?, ?)', [user.username, user.email, user.password, user.role || 'user', user.is_verified || false, user.verification_code]);
-        return result.insertId;
+        const db = (0, db_1.getDB)();
+        const id = yield (0, db_1.getNextSequenceValue)('userId');
+        const newUser = Object.assign(Object.assign({}, user), { id, role: user.role || 'user', is_verified: user.is_verified || false, created_at: new Date() });
+        yield db.collection('users').insertOne(newUser);
+        return id;
     }),
     findById: (id) => __awaiter(void 0, void 0, void 0, function* () {
-        const [rows] = yield db_1.default.query('SELECT id, username, email, role, created_at, is_verified FROM users WHERE id = ?', [id]);
-        return rows.length > 0 ? rows[0] : null;
+        const db = (0, db_1.getDB)();
+        const user = yield db.collection('users').findOne({ id }, { projection: { id: 1, username: 1, email: 1, role: 1, created_at: 1, is_verified: 1 } });
+        return user;
     }),
     verifyUser: (email) => __awaiter(void 0, void 0, void 0, function* () {
-        const [result] = yield db_1.default.query('UPDATE users SET is_verified = TRUE, verification_code = NULL WHERE email = ?', [email]);
-        return result.affectedRows > 0;
+        const db = (0, db_1.getDB)();
+        const result = yield db.collection('users').updateOne({ email }, { $set: { is_verified: true, verification_code: null } });
+        return result.modifiedCount > 0;
     })
 };

@@ -21,29 +21,21 @@ const generateToken = (id, role) => {
         expiresIn: '30d',
     });
 };
-const nodemailer_1 = __importDefault(require("nodemailer"));
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
-const transporter = nodemailer_1.default.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+const emailService_1 = require("../utils/emailService");
 const sendVerificationEmail = (email, otp) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('Skipping email verification: EMAIL_USER or EMAIL_PASS not set.');
-        return;
-    }
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
+    // emailService handles config checks
+    const emailOptions = {
         to: email,
         subject: 'Verify Your Email - Dissanayaka Contractors',
         text: `Your verification code is: ${otp}`,
         html: `<h3>Email Verification</h3><p>Your verification code is: <strong>${otp}</strong></p>`
     };
-    yield transporter.sendMail(mailOptions);
+    try {
+        yield (0, emailService_1.sendEmail)(emailOptions);
+    }
+    catch (error) {
+        console.warn('Failed to send verification email:', error);
+    }
 });
 const registerUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { username, email, password, role } = req.body;

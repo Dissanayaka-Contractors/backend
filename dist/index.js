@@ -15,13 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const db_1 = __importDefault(require("./config/db"));
+const db_1 = require("./config/db");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Middleware
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '50mb' }));
+app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
 // Routes
 const jobRoutes_1 = __importDefault(require("./routes/jobRoutes"));
 const testimonialRoutes_1 = __importDefault(require("./routes/testimonialRoutes"));
@@ -39,8 +40,8 @@ app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../
 // Test Route
 app.get('/api/health', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const connection = yield db_1.default.getConnection();
-        connection.release();
+        const db = (0, db_1.getDB)();
+        yield db.command({ ping: 1 });
         res.json({ status: 'ok', database: 'connected' });
     }
     catch (error) {
@@ -48,6 +49,20 @@ app.get('/api/health', (req, res) => __awaiter(void 0, void 0, void 0, function*
         res.status(500).json({ status: 'error', database: 'disconnected', error: error.message });
     }
 }));
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+// Export the Express API
+exports.default = app;
+// Only run the server if not in Vercel environment
+if (process.env.VERCEL !== '1') {
+    (0, db_1.connectDB)().then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+    }).catch(err => {
+        console.error('Failed to connect to MongoDB', err);
+        process.exit(1);
+    });
+}
+else {
+    // For Vercel Serverless Functions
+    (0, db_1.connectDB)().catch(console.error);
+}

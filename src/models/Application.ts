@@ -1,5 +1,4 @@
-import pool from '../config/db';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { getDB, getNextSequenceValue } from '../config/db';
 
 export interface Application {
     id?: number;
@@ -21,73 +20,124 @@ export interface Application {
 
 export const ApplicationModel = {
     create: async (application: Application): Promise<number> => {
-        const [result] = await pool.query<ResultSetHeader>(
-            'INSERT INTO applications (job_id, user_id, full_name, email, phone, address, gender, age, cv_path, cv_data, cv_mimetype) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [
-                application.job_id,
-                application.user_id,
-                application.full_name,
-                application.email,
-                application.phone,
-                application.address,
-                application.gender,
-                application.age,
-                application.cv_path,
-                application.cv_data,
-                application.cv_mimetype
-            ]
-        );
-        return result.insertId;
+        const db = getDB();
+        const id = await getNextSequenceValue('applicationId');
+        const newApplication = {
+            ...application,
+            id,
+            applied_at: new Date()
+        };
+        await db.collection('applications').insertOne(newApplication);
+        return id;
     },
 
     findCVById: async (id: number): Promise<{ cv_data: Buffer, cv_mimetype: string, cv_path: string } | null> => {
-        const [rows] = await pool.query<RowDataPacket[]>('SELECT cv_data, cv_mimetype, cv_path FROM applications WHERE id = ?', [id]);
-        if (rows.length === 0) return null;
-        return rows[0] as { cv_data: Buffer, cv_mimetype: string, cv_path: string };
+        const db = getDB();
+        const app = await db.collection('applications').findOne(
+            { id },
+            { projection: { cv_data: 1, cv_mimetype: 1, cv_path: 1 } }
+        );
+        if (!app || !app.cv_data) return null;
+        return {
+            cv_data: app.cv_data.buffer ? Buffer.from(app.cv_data.buffer) : app.cv_data,
+            cv_mimetype: app.cv_mimetype,
+            cv_path: app.cv_path
+        };
     },
 
     findAll: async (): Promise<Application[]> => {
-        const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.age, a.cv_path, a.status, a.applied_at, j.title as job_title 
-            FROM applications a 
-            JOIN jobs j ON a.job_id = j.id 
-            ORDER BY a.applied_at DESC
-        `);
-        return rows as Application[];
+        const db = getDB();
+        // Aggregation to join with jobs
+        const apps = await db.collection('applications').aggregate([
+            {
+                $lookup: {
+                    from: 'jobs',
+                    localField: 'job_id',
+                    foreignField: 'id',
+                    as: 'job'
+                }
+            },
+            {
+                $unwind: { path: '$job', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $sort: { applied_at: -1 }
+            },
+            {
+                $project: {
+                    id: 1, job_id: 1, user_id: 1, full_name: 1, email: 1, phone: 1, address: 1, gender: 1, age: 1, cv_path: 1, status: 1, applied_at: 1,
+                    job_title: '$job.title'
+                }
+            }
+        ]).toArray();
+        return apps as Application[];
     },
 
     findByUserId: async (userId: number): Promise<Application[]> => {
-        const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.age, a.cv_path, a.status, a.applied_at, j.title as job_title 
-            FROM applications a 
-            JOIN jobs j ON a.job_id = j.id 
-            WHERE a.user_id = ? 
-            ORDER BY a.applied_at DESC
-        `, [userId]);
-        return rows as Application[];
+        const db = getDB();
+        const apps = await db.collection('applications').aggregate([
+            { $match: { user_id: userId } },
+            {
+                $lookup: {
+                    from: 'jobs',
+                    localField: 'job_id',
+                    foreignField: 'id',
+                    as: 'job'
+                }
+            },
+            {
+                $unwind: { path: '$job', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $sort: { applied_at: -1 }
+            },
+            {
+                $project: {
+                    id: 1, job_id: 1, user_id: 1, full_name: 1, email: 1, phone: 1, address: 1, gender: 1, age: 1, cv_path: 1, status: 1, applied_at: 1,
+                    job_title: '$job.title'
+                }
+            }
+        ]).toArray();
+        return apps as Application[];
     },
 
     findById: async (id: number): Promise<Application | null> => {
-        const [rows] = await pool.query<RowDataPacket[]>(`
-            SELECT a.id, a.job_id, a.user_id, a.full_name, a.email, a.phone, a.address, a.gender, a.age, a.cv_path, a.status, a.applied_at, j.title as job_title 
-            FROM applications a 
-            JOIN jobs j ON a.job_id = j.id 
-            WHERE a.id = ?
-        `, [id]);
-        if (rows.length === 0) return null;
-        return rows[0] as Application;
+        const db = getDB();
+        const apps = await db.collection('applications').aggregate([
+            { $match: { id } },
+            {
+                $lookup: {
+                    from: 'jobs',
+                    localField: 'job_id',
+                    foreignField: 'id',
+                    as: 'job'
+                }
+            },
+            {
+                $unwind: { path: '$job', preserveNullAndEmptyArrays: true }
+            },
+            {
+                $project: {
+                    id: 1, job_id: 1, user_id: 1, full_name: 1, email: 1, phone: 1, address: 1, gender: 1, age: 1, cv_path: 1, status: 1, applied_at: 1,
+                    job_title: '$job.title'
+                }
+            }
+        ]).toArray();
+        return apps.length > 0 ? apps[0] as Application : null;
     },
 
     updateStatus: async (id: number, status: string): Promise<boolean> => {
-        const [result] = await pool.query<ResultSetHeader>(
-            'UPDATE applications SET status = ? WHERE id = ?',
-            [status, id]
+        const db = getDB();
+        const result = await db.collection('applications').updateOne(
+            { id },
+            { $set: { status } }
         );
-        return result.affectedRows > 0;
+        return result.modifiedCount > 0;
     },
 
     delete: async (id: number): Promise<boolean> => {
-        const [result] = await pool.query<ResultSetHeader>('DELETE FROM applications WHERE id = ?', [id]);
-        return result.affectedRows > 0;
+        const db = getDB();
+        const result = await db.collection('applications').deleteOne({ id });
+        return result.deletedCount > 0;
     }
 };

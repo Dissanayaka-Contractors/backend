@@ -8,30 +8,39 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JobModel = void 0;
-const db_1 = __importDefault(require("../config/db"));
+const db_1 = require("../config/db");
 exports.JobModel = {
     findAll: () => __awaiter(void 0, void 0, void 0, function* () {
-        const [rows] = yield db_1.default.query('SELECT * FROM jobs WHERE status = 1 ORDER BY postedDate DESC');
-        return rows.map(row => (Object.assign(Object.assign({}, row), { keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords })));
+        const db = (0, db_1.getDB)();
+        const jobs = yield db.collection('jobs')
+            .find({ status: { $ne: 5 } }) // Assuming 5 is deleted, and 1 is active, or just not 5. Let's use $ne 5 or $eq 1 based on old code. Old code used `status = 1`.
+            // Wait, looking at old code: `SELECT * FROM jobs WHERE status = 1`
+            // and `softDelete: UPDATE jobs SET status = 5`
+            // Let's stick to status: 1, or if it's missing (migrated records didn't have status in schema!), we should handle it.
+            // Wait, the MySQL schema didn't have `status` column in `jobs` table, but `Job.ts` uses `status = 1`. 
+            // In the migration script, we just migrated `jobs` table. The old DB probably had a status column added later. Let's query by `$or: [{status: 1}, {status: {$exists: false}}]`.
+            .sort({ postedDate: -1 })
+            .toArray();
+        // Filter out status 5 just in case.
+        return jobs.filter(j => j.status !== 5);
     }),
     create: (job) => __awaiter(void 0, void 0, void 0, function* () {
-        const [result] = yield db_1.default.query('INSERT INTO jobs (title, type, location, description, salary, postedDate, keywords, status) VALUES (?, ?, ?, ?, ?, ?, ?, 1)', [job.title, job.type, job.location, job.description, job.salary, job.postedDate, JSON.stringify(job.keywords || [])]);
-        return result.insertId;
+        const db = (0, db_1.getDB)();
+        const id = yield (0, db_1.getNextSequenceValue)('jobId');
+        const newJob = Object.assign(Object.assign({}, job), { id, status: 1 });
+        yield db.collection('jobs').insertOne(newJob);
+        return id;
     }),
     findById: (id) => __awaiter(void 0, void 0, void 0, function* () {
-        const [rows] = yield db_1.default.query('SELECT * FROM jobs WHERE id = ? AND status = 1', [id]);
-        if (rows.length === 0)
-            return null;
-        const row = rows[0];
-        return Object.assign(Object.assign({}, row), { keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : row.keywords });
+        const db = (0, db_1.getDB)();
+        const job = yield db.collection('jobs').findOne({ id, status: { $ne: 5 } });
+        return job;
     }),
     softDelete: (id) => __awaiter(void 0, void 0, void 0, function* () {
-        const [result] = yield db_1.default.query('UPDATE jobs SET status = 5 WHERE id = ?', [id]);
-        return result.affectedRows > 0;
+        const db = (0, db_1.getDB)();
+        const result = yield db.collection('jobs').updateOne({ id }, { $set: { status: 5 } });
+        return result.modifiedCount > 0;
     })
 };
