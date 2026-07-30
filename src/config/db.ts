@@ -10,7 +10,6 @@ let db: Db;
 
 export const connectDB = async () => {
   if (!db) {
-    await client.connect();
     db = client.db(process.env.MONGODB_DB_NAME || 'dissanayaka_contractors');
     console.log('Connected to MongoDB');
   }
@@ -19,7 +18,7 @@ export const connectDB = async () => {
 
 export const getDB = () => {
     if (!db) {
-        throw new Error('Database not initialized. Call connectDB first.');
+        db = client.db(process.env.MONGODB_DB_NAME || 'dissanayaka_contractors');
     }
     return db;
 };

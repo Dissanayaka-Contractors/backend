@@ -21,7 +21,6 @@ const client = new mongodb_1.MongoClient(uri);
 let db;
 const connectDB = () => __awaiter(void 0, void 0, void 0, function* () {
     if (!db) {
-        yield client.connect();
         db = client.db(process.env.MONGODB_DB_NAME || 'dissanayaka_contractors');
         console.log('Connected to MongoDB');
     }
@@ -30,7 +29,7 @@ const connectDB = () => __awaiter(void 0, void 0, void 0, function* () {
 exports.connectDB = connectDB;
 const getDB = () => {
     if (!db) {
-        throw new Error('Database not initialized. Call connectDB first.');
+        db = client.db(process.env.MONGODB_DB_NAME || 'dissanayaka_contractors');
     }
     return db;
 };
